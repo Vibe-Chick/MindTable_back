@@ -6,7 +6,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
-from .serializers import PsychologyProfileSerializer, PsychologyQuestionHistory, PsychologyAnalysisResult
+from .serializers import PsychologyProfileSerializer
 from .manual_question_test import generate_base_questions
 
 User = get_user_model()

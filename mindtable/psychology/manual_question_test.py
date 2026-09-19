@@ -70,7 +70,9 @@ def generate_base_questions():
         "구체적 경험을 묻는다, 3개는 서로 다른 성격 축을 겨냥한다."
     )
     result = _call("대학생 온보딩 설문용 개방형 질문 3개를 만들어라.", schema, system, temp=0.7)
-    return result["questions"]
+    data = json.loads(result)
+    questions = data.get("questions", [])
+    return questions
 
 
 def judge_followup_question(questions, answers):
