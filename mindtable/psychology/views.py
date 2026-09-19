@@ -7,7 +7,7 @@ from rest_framework.views import APIView
 
 from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
 from .serializers import PsychologyProfileSerializer
-
+from .manual_question_test import generate_base_questions
 
 User = get_user_model()
 
@@ -20,20 +20,14 @@ class QuestionGenerateAPIView(APIView):
         progress, created = PsychologyQuestionProgress.objects.get_or_create(
             user=user
         )
-
         question_count = progress.question_count
+        question_list = generate_base_questions() 
+        questions = question_list  
 
-        questions = [
-            "새로운 사람들과 만나는 것을 좋아하나요?",
-            "계획을 세우고 그대로 실행하는 편인가요?",
-            "스트레스를 받으면 주로 어떻게 해결하나요?",
-            "친구들과 있을 때 주로 어떤 역할을 하나요?",
-            "새로운 환경에 적응하는 데 시간이 얼마나 걸리나요?",
-        ]
+        
+        question_index = question_count % len(questions)
 
-        # question_index = question_count % len(questions)
-
-        # question = questions[question_index]
+        question = questions[question_index]
 
         progress.question_count += 1
         progress.save()
@@ -41,10 +35,10 @@ class QuestionGenerateAPIView(APIView):
         return Response(
             {
                 "question_number": progress.question_count,
-                # "question": question,
+                "question": question,
             }
         )
-        
+
 class CheckAnswerAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
