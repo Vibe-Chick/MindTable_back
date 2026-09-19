@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'accounts',
     "psychology",
+    "matching",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
