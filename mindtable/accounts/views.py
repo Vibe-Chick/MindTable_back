@@ -36,9 +36,12 @@ class GoogleLoginView(APIView):
                 settings.GOOGLE_CLIENT_ID,
             )
 
-        except ValueError:
+        except ValueError as e:
+            print("Google token verify error:", str(e))
             return Response(
-                {"error": "유효하지 않은 Google 토큰입니다."},
+                {"error": "유효하지 않은 Google 토큰입니다.",
+                 "detail": str(e),
+                },
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
