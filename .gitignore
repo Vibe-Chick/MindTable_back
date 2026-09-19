@@ -51,3 +51,9 @@ dist/
 celerybeat-schedule
 celerybeat.pid
 ```
+
+# Django
+*.log
+db.sqlite3
+db.sqlite3-journal
+**/migrations/
