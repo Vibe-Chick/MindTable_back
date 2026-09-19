@@ -7,7 +7,6 @@ from rest_framework.views import APIView
 
 from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
 from .serializers import PsychologyProfileSerializer
-from .serializers import PsychologyProfileSerializer
 from .manual_question_test import generate_base_questions
 from .manual_analyze_test import analyze_personality
 User = get_user_model()
@@ -83,11 +82,7 @@ class CheckAnswerAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-        
-User = get_user_model()
 
-        
-User = get_user_model()
 
 class AnalyzeAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -144,7 +139,6 @@ class AnalyzeAPIView(APIView):
 
         PsychologyAnalysisResult.objects.create(
             user=user,
-            user=user,
             openness=result["bigFive"]["openness"],
             conscientiousness=result["bigFive"]["conscientiousness"],
             extraversion=result["bigFive"]["extraversion"],
@@ -166,24 +160,7 @@ class AnalyzeAPIView(APIView):
                 "insufficient",
                 [],
             ),
-            interests=result.get(
-                "interests",
-                [],
-            ),
-            summary=result.get(
-                "summary",
-                "",
-            ),
-            valid=result.get(
-                "valid",
-                True,
-            ),
-            insufficient=result.get(
-                "insufficient",
-                [],
-            ),
         )
-
 
         return Response(
             result,
