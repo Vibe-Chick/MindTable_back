@@ -43,10 +43,10 @@ def _call(prompt: str, schema: dict, system: str, temp: float = 0.0) -> dict:
     msg = data["choices"][0]["message"]
     for tc in msg.get("tool_calls") or []:
         args = tc.get("function", {}).get("arguments")
-        print("args",args)
         if args:
-            return args
+            return json.loads(args)  # 문자열로 온 JSON을 dict로 파싱
     raise RuntimeError(f"구조화 응답을 받지 못했습니다: {data}")
+
 
 
 def generate_base_questions():
@@ -70,7 +70,8 @@ def generate_base_questions():
         "구체적 경험을 묻는다, 3개는 서로 다른 성격 축을 겨냥한다."
     )
     result = _call("대학생 온보딩 설문용 개방형 질문 3개를 만들어라.", schema, system, temp=0.7)
-    return result["questions"]
+    return result.get("questions", [])
+
 
 
 def judge_followup_question(questions, answers):
