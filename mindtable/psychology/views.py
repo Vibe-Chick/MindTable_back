@@ -1,75 +1,50 @@
+from django.contrib.auth import get_user_model
+
 from rest_framework import status
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
+from .serializers import PsychologyProfileSerializer
+
+
+User = get_user_model()
 
 class QuestionGenerateAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        user = request.user
+
+        progress, created = PsychologyQuestionProgress.objects.get_or_create(
+            user=user
+        )
+
+        question_count = progress.question_count
+
         questions = [
-            {
-                "id": "q1",
-                "type": "open",
-                "trait": "extraversion",
-                "title": (
-                    "낯선 사람들이랑 있을 때랑 혼자 있을 때, "
-                    "에너지가 언제 더 차오르는 편이야?"
-                ),
-                "hint": (
-                    "정답은 없어, 최근 예시 들어서 "
-                    "편하게 적어줘"
-                ),
-            },
-            {
-                "id": "q2",
-                "type": "open",
-                "trait": "openness",
-                "title": (
-                    "요즘 새롭게 관심 생긴 주제나 "
-                    "해본 경험 있어?"
-                ),
-                "hint": (
-                    "아주 작은 거라도 좋아. "
-                    "왜 끌렸는지도 알려줘"
-                ),
-            },
-            {
-                "id": "q3",
-                "type": "open",
-                "trait": "agreeableness",
-                "title": (
-                    "낯선 사람들이랑 대화하다가 "
-                    "어색해지는 느낌은 어떻게 풀어가는 편이야?"
-                ),
-                "hint": "너만의 대화 스타일이 궁금해",
-            },
-            {
-                "id": "q4",
-                "type": "choice",
-                "trait": "calibration",
-                "title": (
-                    "마지막으로, 그룹 안에 있을 때 "
-                    "너는 어느 쪽에 더 가까워?"
-                ),
-                "hint": "정답 없어, 더 편한 쪽으로 골라줘",
-                "options": [
-                    {
-                        "value": "leader",
-                        "label": "이끄는 역할이 편해",
-                    },
-                    {
-                        "value": "harmonizer",
-                        "label": "분위기 맞추는 게 편해",
-                    },
-                ],
-            },
+            "새로운 사람들과 만나는 것을 좋아하나요?",
+            "계획을 세우고 그대로 실행하는 편인가요?",
+            "스트레스를 받으면 주로 어떻게 해결하나요?",
+            "친구들과 있을 때 주로 어떤 역할을 하나요?",
+            "새로운 환경에 적응하는 데 시간이 얼마나 걸리나요?",
         ]
 
-        return Response({
-            "questions": questions
-        }) 
+        # question_index = question_count % len(questions)
+
+        # question = questions[question_index]
+
+        progress.question_count += 1
+        progress.save()
+
+        return Response(
+            {
+                "question_number": progress.question_count,
+                # "question": question,
+            }
+        )
+        
 class CheckAnswerAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -80,60 +55,60 @@ class CheckAnswerAPIView(APIView):
 
         if not question_id:
             return Response(
-                {"error": "questionId가 필요합니다."},
+                {"detail": "questionId가 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not question:
             return Response(
-                {"error": "question이 필요합니다."},
+                {"detail": "question이 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         if not answer:
             return Response(
-                {"error": "answer가 필요합니다."},
+                {"detail": "answer가 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        # TODO:
-        # 나중에 AI 모델에게 question + answer를 전달
-        # AI가 답변의 충분성을 판단하도록 변경
+        history = PsychologyQuestionHistory.objects.create(
+            user=request.user,
+            question_id=question_id,
+            question=question,
+            answer=answer,
+        )
 
-        if len(answer.strip()) < 15:
-            return Response({
-                "needFollowUp": True,
-                "followUpQuestion":
-                    "조금 더 구체적인 상황이나 경험을 말해줄 수 있어?",
-            })
-
-        return Response({
-            "needFollowUp": False,
-            "followUpQuestion": None,
-        })
-
+        return Response(
+            {
+                "valid": True,
+                "history_id": history.id,
+                "questionId": history.question_id,
+                "question": history.question,
+                "answer": history.answer,
+            },
+            status=status.HTTP_201_CREATED,
+        )
+        
 class AnalyzeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        answers = request.data.get("answers")
+        user = request.user
         follow_ups = request.data.get("followUps", [])
 
-        if not answers:
+        if not follow_ups:
             return Response(
-                {"error": "answers가 필요합니다."},
+                {
+                    "detail": "followUps가 필요합니다."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        # TODO:
-        # answers와 follow_ups를 실제 AI 모델에 전달
-        # AI 결과로 아래 값을 생성해야 함
 
         result = {
             "bigFive": {
                 "openness": 4,
                 "conscientiousness": 3,
-                "extraversion": 4,
+                "extraversion": 2,
                 "agreeableness": 3,
                 "neuroticism": 2,
             },
@@ -142,125 +117,79 @@ class AnalyzeAPIView(APIView):
                 "클라이밍",
                 "전시 보기",
             ],
-            "summary":
-                "낯가림은 있지만 얘기 시작하면 잘 안 멈추는 타입",
+            "summary": "호기심은 있지만 얕게 시작하면 잘 안 멈추는 타입",
+            "valid": True,
+            "insufficient": [],
         }
 
-        return Response(result)
-    
-from .models import PsychologyProfile
-from .serializers import PsychologyProfileSerializer
+        PsychologyAnalysisResult.objects.create(
+            user=request.user,
+            openness=result["bigFive"]["openness"],
+            conscientiousness=result["bigFive"]["conscientiousness"],
+            extraversion=result["bigFive"]["extraversion"],
+            agreeableness=result["bigFive"]["agreeableness"],
+            neuroticism=result["bigFive"]["neuroticism"],
+            interests=result["interests"],
+            summary=result["summary"],
+            valid=result["valid"],
+            insufficient=result["insufficient"],
+        )
+        
+        return Response(
+            result,
+            status=status.HTTP_200_OK,
+        )
+        
+User = get_user_model()
 
 
 class PsychologyProfileSaveAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request, user_id):
-
-        if request.user.id != user_id:
+        try:
+            user = User.objects.get(id=user_id)
+        except User.DoesNotExist:
             return Response(
                 {
-                    "error":
-                        "다른 사용자의 프로필을 수정할 수 없습니다."
+                    "detail": "사용자를 찾을 수 없습니다."
                 },
-                status=status.HTTP_403_FORBIDDEN,
+                status=status.HTTP_404_NOT_FOUND,
             )
 
-        big_five = request.data.get("bigFive")
-        interests = request.data.get("interests", [])
-        summary = request.data.get("summary")
+        analysis = PsychologyAnalysisResult.objects.filter(
+            user=user,
+            valid=True,
+        ).order_by("-created_at").first()
 
-        if not big_five:
+        if analysis is None:
             return Response(
-                {"error": "bigFive가 필요합니다."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        required_traits = [
-            "openness",
-            "conscientiousness",
-            "extraversion",
-            "agreeableness",
-            "neuroticism",
-        ]
-
-        for trait in required_traits:
-            if trait not in big_five:
-                return Response(
-                    {
-                        "error":
-                            f"bigFive.{trait} 값이 필요합니다."
-                    },
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        if not summary:
-            return Response(
-                {"error": "summary가 필요합니다."},
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        profile, created = (
-            PsychologyProfile.objects.update_or_create(
-                user=request.user,
-                defaults={
-                    "openness":
-                        big_five["openness"],
-                    "conscientiousness":
-                        big_five["conscientiousness"],
-                    "extraversion":
-                        big_five["extraversion"],
-                    "agreeableness":
-                        big_five["agreeableness"],
-                    "neuroticism":
-                        big_five["neuroticism"],
-                    "interests": interests,
-                    "summary": summary,
+                {
+                    "detail": "해당 사용자의 분석 결과가 없습니다."
                 },
+                status=status.HTTP_404_NOT_FOUND,
             )
+
+        profile, created = PsychologyProfile.objects.update_or_create(
+            user=user,
+            defaults={
+                "openness": analysis.openness,
+                "conscientiousness": analysis.conscientiousness,
+                "extraversion": analysis.extraversion,
+                "agreeableness": analysis.agreeableness,
+                "neuroticism": analysis.neuroticism,
+                "interests": analysis.interests,
+                "summary": analysis.summary,
+            },
         )
 
         serializer = PsychologyProfileSerializer(profile)
 
         return Response(
-            {
-                "created": created,
-                "profile": serializer.data,
-            },
+            serializer.data,
             status=(
                 status.HTTP_201_CREATED
                 if created
                 else status.HTTP_200_OK
             ),
         )
-from django.urls import path
-
-from .views import (
-    AnalyzeAPIView,
-    CheckAnswerAPIView,
-    QuestionGenerateAPIView,
-    PsychologyProfileSaveAPIView,
-)
-
-
-urlpatterns = [
-    path(
-        "psychology/questions/",
-        QuestionGenerateAPIView.as_view(),
-    ),
-
-    path(
-        "psychology/check-answer/",
-        CheckAnswerAPIView.as_view(),
-    ),
-
-    path(
-        "psychology/analyze/",
-        AnalyzeAPIView.as_view(),
-    ),
-
-    path(
-        "users/<int:user_id>/profile/",
-        PsychologyProfileSaveAPIView.as_view(),
-    ),
-]
