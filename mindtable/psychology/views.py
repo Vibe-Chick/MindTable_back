@@ -7,6 +7,7 @@ from rest_framework.views import APIView
 
 from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
 from .serializers import PsychologyProfileSerializer, PsychologyQuestionHistory, PsychologyAnalysisResult
+from .manual_question_test import generate_base_questions
 
 User = get_user_model()
 
@@ -19,20 +20,14 @@ class QuestionGenerateAPIView(APIView):
         progress, created = PsychologyQuestionProgress.objects.get_or_create(
             user=user
         )
-
         question_count = progress.question_count
-        questions = get_onboarding_questions() 
-        if question_count >= len(questions):
-            return Response(
-                {
-                    "is_completed": True,
-                    "question_number": question_count,
-                    "question": None,
-                }
-            )
+        question_list = generate_base_questions() 
+        questions = question_list  
 
-        question = questions[question_count]
-         
+        
+        question_index = question_count % len(questions)
+
+        question = questions[question_index]
 
         progress.question_count += 1
         progress.save()
@@ -43,7 +38,7 @@ class QuestionGenerateAPIView(APIView):
                 "question": question,
             }
         )
-        
+
 class CheckAnswerAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
