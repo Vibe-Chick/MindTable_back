@@ -5,7 +5,7 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import PsychologyProfile, PsychologyQuestionProgress
+from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
 from .serializers import PsychologyProfileSerializer
 
 
@@ -24,16 +24,16 @@ class QuestionGenerateAPIView(APIView):
         question_count = progress.question_count
 
         questions = [
-            # "새로운 사람들과 만나는 것을 좋아하나요?",
-            # "계획을 세우고 그대로 실행하는 편인가요?",
-            # "스트레스를 받으면 주로 어떻게 해결하나요?",
-            # "친구들과 있을 때 주로 어떤 역할을 하나요?",
-            # "새로운 환경에 적응하는 데 시간이 얼마나 걸리나요?",
+            "새로운 사람들과 만나는 것을 좋아하나요?",
+            "계획을 세우고 그대로 실행하는 편인가요?",
+            "스트레스를 받으면 주로 어떻게 해결하나요?",
+            "친구들과 있을 때 주로 어떤 역할을 하나요?",
+            "새로운 환경에 적응하는 데 시간이 얼마나 걸리나요?",
         ]
 
-        question_index = question_count % len(questions)
+        # question_index = question_count % len(questions)
 
-        question = questions[question_index]
+        # question = questions[question_index]
 
         progress.question_count += 1
         progress.save()
@@ -41,7 +41,7 @@ class QuestionGenerateAPIView(APIView):
         return Response(
             {
                 "question_number": progress.question_count,
-                "question": question,
+                # "question": question,
             }
         )
         
@@ -49,55 +49,100 @@ class CheckAnswerAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        question_id = request.data.get("questionId")
+        question = request.data.get("question")
         answer = request.data.get("answer")
+
+        if not question_id:
+            return Response(
+                {"detail": "questionId가 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if not question:
+            return Response(
+                {"detail": "question이 필요합니다."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         if not answer:
             return Response(
-                {
-                    "detail": "answer가 필요합니다.",
-                },
+                {"detail": "answer가 필요합니다."},
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        history = PsychologyQuestionHistory.objects.create(
+            user=request.user,
+            question_id=question_id,
+            question=question,
+            answer=answer,
+        )
 
         return Response(
             {
                 "valid": True,
-                "answer": answer,
+                "history_id": history.id,
+                "questionId": history.question_id,
+                "question": history.question,
+                "answer": history.answer,
             },
-            status=status.HTTP_200_OK,
+            status=status.HTTP_201_CREATED,
         )
         
 class AnalyzeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        answers = request.data.get("answers", [])
+        user = request.user
+        follow_ups = request.data.get("followUps", [])
 
-        if not answers:
+        if not follow_ups:
             return Response(
                 {
-                    "detail": "answers가 필요합니다.",
+                    "detail": "followUps가 필요합니다."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
         result = {
             "bigFive": {
-                "openness": 0,
-                "conscientiousness": 0,
-                "extraversion": 0,
-                "agreeableness": 0,
-                "neuroticism": 0,
+                "openness": 4,
+                "conscientiousness": 3,
+                "extraversion": 2,
+                "agreeableness": 3,
+                "neuroticism": 2,
             },
-            "interests": [],
-            "summary": "",
+            "interests": [
+                "필름카메라",
+                "클라이밍",
+                "전시 보기",
+            ],
+            "summary": "호기심은 있지만 얕게 시작하면 잘 안 멈추는 타입",
+            "valid": True,
+            "insufficient": [],
         }
 
+        PsychologyAnalysisResult.objects.create(
+            user=request.user,
+            openness=result["bigFive"]["openness"],
+            conscientiousness=result["bigFive"]["conscientiousness"],
+            extraversion=result["bigFive"]["extraversion"],
+            agreeableness=result["bigFive"]["agreeableness"],
+            neuroticism=result["bigFive"]["neuroticism"],
+            interests=result["interests"],
+            summary=result["summary"],
+            valid=result["valid"],
+            insufficient=result["insufficient"],
+        )
+        
         return Response(
             result,
             status=status.HTTP_200_OK,
         )
         
+User = get_user_model()
+
+
 class PsychologyProfileSaveAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -107,28 +152,34 @@ class PsychologyProfileSaveAPIView(APIView):
         except User.DoesNotExist:
             return Response(
                 {
-                    "detail": "사용자를 찾을 수 없습니다.",
+                    "detail": "사용자를 찾을 수 없습니다."
                 },
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        big_five = request.data.get("bigFive", {})
-        interests = request.data.get("interests", [])
-        summary = request.data.get("summary", "")
+        analysis = PsychologyAnalysisResult.objects.filter(
+            user=user,
+            valid=True,
+        ).order_by("-created_at").first()
+
+        if analysis is None:
+            return Response(
+                {
+                    "detail": "해당 사용자의 분석 결과가 없습니다."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
         profile, created = PsychologyProfile.objects.update_or_create(
             user=user,
             defaults={
-                "openness": big_five.get("openness", 0),
-                "conscientiousness": big_five.get(
-                    "conscientiousness",
-                    0,
-                ),
-                "extraversion": big_five.get("extraversion", 0),
-                "agreeableness": big_five.get("agreeableness", 0),
-                "neuroticism": big_five.get("neuroticism", 0),
-                "interests": interests,
-                "summary": summary,
+                "openness": analysis.openness,
+                "conscientiousness": analysis.conscientiousness,
+                "extraversion": analysis.extraversion,
+                "agreeableness": analysis.agreeableness,
+                "neuroticism": analysis.neuroticism,
+                "interests": analysis.interests,
+                "summary": analysis.summary,
             },
         )
 
