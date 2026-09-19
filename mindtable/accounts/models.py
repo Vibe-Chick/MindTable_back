@@ -13,25 +13,20 @@ class User(AbstractUser):
         blank=True,
     )
 
-
-class SchoolVerification(models.Model):
-    user = models.OneToOneField(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="school_verification",
+    school_email = models.EmailField(
+        unique=True,
+        null=True,
+        blank=True,
     )
-
-    school_email = models.EmailField(unique=True)
 
     school_name = models.CharField(
         max_length=100,
         blank=True,
     )
 
-    verified_at = models.DateTimeField(auto_now_add=True)
+    is_school_verified = models.BooleanField(default=False)
 
-    def __str__(self):
-        return f"{self.user.email} - {self.school_email}"
+    school_verified_at = models.DateTimeField(null=True, blank=True)
 
 
 class SchoolEmailVerificationCode(models.Model):
