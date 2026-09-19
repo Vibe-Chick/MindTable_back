@@ -8,7 +8,7 @@ from rest_framework.views import APIView
 from .models import PsychologyProfile, PsychologyQuestionProgress, PsychologyQuestionHistory, PsychologyAnalysisResult
 from .serializers import PsychologyProfileSerializer
 from .manual_question_test import generate_base_questions
-
+from .manual_analyze_test import analyze_personality
 User = get_user_model()
 
 class QuestionGenerateAPIView(APIView):
@@ -82,8 +82,7 @@ class CheckAnswerAPIView(APIView):
             },
             status=status.HTTP_201_CREATED,
         )
-        
-User = get_user_model()
+
 
 class AnalyzeAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -136,23 +135,7 @@ class AnalyzeAPIView(APIView):
         ]
 
         # result = bigfive(conversations)
-        result = {
-            "bigFive": {
-                "openness": 4,
-                "conscientiousness": 3,
-                "extraversion": 2,
-                "agreeableness": 4,
-                "neuroticism": 2,
-            },
-            "interests": [
-                "필름카메라",
-                "클라이밍",
-                "전시 보기",
-            ],
-            "summary": "새로운 경험에 대한 호기심이 높고, 혼자 있을 때 에너지를 회복하는 편이지만 친해지면 대화를 적극적으로 이어가는 성향입니다.",
-            "valid": True,
-            "insufficient": [],
-        }
+        result =  analyze_personality(user_id, conversations)
 
         PsychologyAnalysisResult.objects.create(
             user=user,
@@ -183,6 +166,8 @@ class AnalyzeAPIView(APIView):
             result,
             status=status.HTTP_200_OK,
         )
+        
+        
         
         
 class PsychologyProfileSaveAPIView(APIView):
