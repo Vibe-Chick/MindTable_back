@@ -9,9 +9,17 @@ class PsychologyProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = PsychologyProfile
         fields = [
+            "id",
+            "user",
             "bigFive",
             "interests",
             "summary",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = [
+            "id",
+            "user",
             "created_at",
             "updated_at",
         ]

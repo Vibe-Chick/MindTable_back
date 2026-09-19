@@ -6,7 +6,6 @@ from .models import PsychologyProfile
 @admin.register(PsychologyProfile)
 class PsychologyProfileAdmin(admin.ModelAdmin):
     list_display = (
-        "id",
         "user",
         "openness",
         "conscientiousness",
@@ -18,4 +17,9 @@ class PsychologyProfileAdmin(admin.ModelAdmin):
 
     search_fields = (
         "user__email",
+    )
+
+    readonly_fields = (
+        "created_at",
+        "updated_at",
     )
