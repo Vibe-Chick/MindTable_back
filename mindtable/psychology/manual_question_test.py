@@ -43,8 +43,9 @@ def _call(prompt: str, schema: dict, system: str, temp: float = 0.0) -> dict:
     msg = data["choices"][0]["message"]
     for tc in msg.get("tool_calls") or []:
         args = tc.get("function", {}).get("arguments")
+        print("args",args)
         if args:
-            return json.loads(args)
+            return args
     raise RuntimeError(f"구조화 응답을 받지 못했습니다: {data}")
 
 
