@@ -83,27 +83,65 @@ class CheckAnswerAPIView(APIView):
             status=status.HTTP_201_CREATED,
         )
         
+User = get_user_model()
+
 class AnalyzeAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
-        user = request.user
-        follow_ups = request.data.get("followUps", [])
+        user_id = request.data.get("user_id")
 
-        if not follow_ups:
+        if not user_id:
             return Response(
                 {
-                    "detail": "followUps가 필요합니다."
+                    "detail": "user_id가 필요합니다."
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        try:
+            user = User.objects.get(
+                email=user_id
+            )
+
+        except User.DoesNotExist:
+            return Response(
+                {
+                    "detail": "사용자를 찾을 수 없습니다."
+                },
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        histories = PsychologyQuestionHistory.objects.filter(
+            user=user
+        ).order_by(
+            "created_at"
+        )
+
+        if not histories.exists():
+            return Response(
+                {
+                    "detail": "분석할 질문/답변 기록이 없습니다."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        conversations = [
+            {
+                "questionId": history.question_id,
+                "question": history.question,
+                "answer": history.answer,
+            }
+            for history in histories
+        ]
+
+        # result = bigfive(conversations)
         result = {
             "bigFive": {
                 "openness": 4,
                 "conscientiousness": 3,
                 "extraversion": 2,
-                "agreeableness": 3,
+                "agreeableness": 4,
                 "neuroticism": 2,
             },
             "interests": [
@@ -111,32 +149,42 @@ class AnalyzeAPIView(APIView):
                 "클라이밍",
                 "전시 보기",
             ],
-            "summary": "호기심은 있지만 얕게 시작하면 잘 안 멈추는 타입",
+            "summary": "새로운 경험에 대한 호기심이 높고, 혼자 있을 때 에너지를 회복하는 편이지만 친해지면 대화를 적극적으로 이어가는 성향입니다.",
             "valid": True,
             "insufficient": [],
         }
 
         PsychologyAnalysisResult.objects.create(
-            user=request.user,
+            user=user,
             openness=result["bigFive"]["openness"],
             conscientiousness=result["bigFive"]["conscientiousness"],
             extraversion=result["bigFive"]["extraversion"],
             agreeableness=result["bigFive"]["agreeableness"],
             neuroticism=result["bigFive"]["neuroticism"],
-            interests=result["interests"],
-            summary=result["summary"],
-            valid=result["valid"],
-            insufficient=result["insufficient"],
+            interests=result.get(
+                "interests",
+                [],
+            ),
+            summary=result.get(
+                "summary",
+                "",
+            ),
+            valid=result.get(
+                "valid",
+                True,
+            ),
+            insufficient=result.get(
+                "insufficient",
+                [],
+            ),
         )
-        
+
         return Response(
             result,
             status=status.HTTP_200_OK,
         )
         
-User = get_user_model()
-
-
+        
 class PsychologyProfileSaveAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
