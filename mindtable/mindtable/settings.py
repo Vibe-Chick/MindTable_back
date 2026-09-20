@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     'accounts',
     "psychology",
     "matching",
+    "restaurant",
 ]
 
 AUTH_USER_MODEL = "accounts.User"
